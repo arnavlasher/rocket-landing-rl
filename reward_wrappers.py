@@ -36,3 +36,26 @@ class StabilityRewardWrapper(gym.Wrapper):
         reward -= self.stability_penalty * abs(angular_velocity)
 
         return observation, reward, terminated, truncated, info
+
+class StabilityPrimeRewardWrapper(gym.Wrapper):
+    def step(self, action):
+        observation, reward, terminated, truncated, info = self.env.step(action)
+
+        reward -= 0.01
+        reward -= 0.20 * abs(observation[5])
+
+        return observation, reward, terminated, truncated, info
+
+
+    
+class StabilityDoublePrimeRewardWrapper(gym.Wrapper):
+    def step(self, action):
+        observation, reward, terminated, truncated, info = self.env.step(action)
+
+        # Penalize taking too long
+        reward -= 0.01
+
+        # Intermediate angular velocity penalty
+        reward -= 0.05 * abs(observation[5])
+
+        return observation, reward, terminated, truncated, info

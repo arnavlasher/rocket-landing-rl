@@ -1,152 +1,270 @@
 
-# Autonomous Rocket Landing Using Reinforcement Learning
+# Rocket Landing with Reinforcement Learning
 
-A reinforcement learning project that trains an AI agent
-to autonomously land a rocket in Gymnasium's LunarLander-v3
-environment using Proximal Policy Optimization (PPO).
+Training and evaluating reinforcement learning agents to land a simulated rocket using Proximal Policy Optimization (PPO), custom reward shaping, and flight trajectory analysis.
 
-## Technologies
-- Python
-- Gymnasium
-- Stable-Baselines3
-- PyTorch
-- Matplotlib
-- Pandas
+## Project Overview
 
-## Baseline Model
-- Algorithm: PPO
-- Training timesteps: 500,000
-- Evaluation episodes: 100
-- Average reward: 115.85
-- Landing success proxy: 72%
-- Average episode length: 498.5 steps
+This project investigates how reward function design affects the performance of reinforcement learning agents in the Gymnasium `LunarLander-v3` environment.
 
-## Baseline Evaluation
+Using Python and Stable-Baselines3, I trained **five PPO agents** with different reward configurations and compared their landing performance, episode efficiency, and rotational behavior.
 
-![Baseline Results](results/baseline_rewards.png)
+The project explores a central challenge in reinforcement learning: **optimizing a reward function does not necessarily produce the intended behavior.**
 
-## Reward Shaping Experiment: Time Penalty
+## Technologies Used
 
-To investigate the effect of reward shaping on reinforcement learning performance, I trained two PPO agents for 500,000 timesteps each:
+- **Python** — Training, evaluation, and data analysis
+- **Gymnasium** — LunarLander-v3 simulation environment
+- **Stable-Baselines3** — PPO reinforcement learning implementation
+- **PyTorch** — Neural network training backend
+- **NumPy and Pandas** — Trajectory analysis and performance metrics
+- **Matplotlib** — Performance visualization
 
-- **Baseline PPO:** Uses Gymnasium's default reward function.
-- **Time-Penalty PPO:** Applies an additional penalty of 0.01 for every simulation step.
+## How It Works
 
-Both models were evaluated over 100 episodes using identical environment seeds and the original Gymnasium reward function.
+The LunarLander environment simulates a spacecraft attempting to land safely on a designated landing pad.
 
+At each timestep, the agent observes eight state variables, including position, velocity, orientation, angular velocity, and landing-leg contact states.
 
-## Stability Reward Shaping Experiment
+The agent selects one of four discrete actions:
 
-### Objective
+- Do nothing
+- Fire the left orientation engine
+- Fire the main engine
+- Fire the right orientation engine
 
-After introducing a time penalty in Model 2, the PPO agent achieved a higher average reward and completed episodes in fewer steps than the baseline.
+PPO learns a control policy by interacting with the environment and optimizing cumulative rewards.
 
-The next experiment investigated whether explicitly penalizing excessive angular velocity could further improve landing performance.
+## Training Configuration
 
-The goal was to encourage the agent to maintain greater rotational stability while preserving the time-efficiency incentive introduced in Model 2.
-
-### Hypothesis
-
-Combining a per-step time penalty with an angular-velocity penalty would encourage smoother landing approaches, potentially improving average reward, landing reliability, and episode efficiency.
-
-### Implementation
-
-A custom `StabilityRewardWrapper` was implemented using Gymnasium's wrapper API.
-
-The wrapper modifies the reward returned after each environment step:
-
-$$
-R_{\text{stability}} = R_{\text{original}} - 0.01 - 0.02|\omega|
-$$
-
-Where:
-
-- `R_original` is Gymnasium's original environment reward.
-- `0.01` is the constant time penalty applied each step.
-- `0.02` is the angular-velocity penalty coefficient.
-- `ω` represents the lander's angular velocity.
-
-The angular velocity is obtained from `observation[5]` in the LunarLander-v3 observation space.
-
-The wrapper was implemented in `reward_wrappers.py`, and the agent was trained using `train_stability.py`.
-
-### Experimental Setup
-
-To maintain consistency with the previous experiments, the stability model used the same PPO training configuration:
+All five agents were trained using the same PPO hyperparameters:
 
 | Parameter | Value |
 |---|---|
 | Algorithm | PPO |
 | Policy | MlpPolicy |
-| Training Timesteps | 500,000 |
+| Environment | LunarLander-v3 |
+| Training Timesteps | 500,000 per model |
 | Learning Rate | 0.0003 |
-| Rollout Steps | 2048 |
+| Rollout Steps | 2,048 |
 | Batch Size | 64 |
-| Time Penalty | 0.01 |
-| Stability Penalty | 0.02 |
-| Evaluation Episodes | 100 |
 
-The stability model was evaluated using the same environment seeds and original reward function as the baseline and time-penalty models.
+Each model was evaluated deterministically over 100 episodes using the same environment seeds. Evaluation used the original environment reward to ensure that results from differently shaped training rewards remained comparable.
 
-### Experimental Results
+## Reward Shaping Experiments
 
-| Metric | Time-Penalty PPO | Stability PPO | Improvement |
-|---|---:|---:|---:|
-| Average Episode Reward | 189.40 | **204.90** | +8.2% |
-| Landing Success Proxy | 76% | **79%** | +3 percentage points |
-| Average Episode Steps | 382.86 | **321.00** | −16.2% |
+### Model 1: Baseline PPO
 
-The stability-shaped model outperformed the time-penalty model across all three measured metrics.
+Trained using the default LunarLander reward function, without additional penalties.
 
-Compared with the original baseline, the stability model achieved:
+This model provides a reference for evaluating the effects of reward shaping.
 
-- **76.9% higher average episode reward**
-- **7 percentage-point higher landing-success proxy**
-- **35.6% fewer simulation steps per episode**
+### Model 2: Time-Penalty PPO
 
-### Analysis
+Introduced a small penalty for each simulation step:
 
-The results suggest that combining time-based and angular-velocity reward shaping may improve the agent's landing performance.
+```python
+reward -= 0.01
+```
 
-The stability model achieved an average reward of **204.90**, exceeding the commonly referenced LunarLander performance threshold of 200.
+**Hypothesis:** Penalizing time will encourage the agent to complete episodes more efficiently.
 
-Additionally, the reduction in average episode length suggests that the additional stability penalty did not prevent the agent from completing episodes efficiently.
+### Model 3: Stability PPO
 
-However, these results do not independently establish that the agent learned smoother flight trajectories. Confirming that would require measuring angular velocity throughout each episode.
+Combined the time penalty with a penalty proportional to absolute angular velocity:
 
-The experiment also used a single training run per configuration, so additional runs with different random seeds are necessary to determine whether the improvements are consistent.
+```python
+reward -= 0.01
+reward -= 0.02 * abs(observation[5])
+```
 
-### Conclusion
+**Hypothesis:** Penalizing rotation will encourage more stable flight behavior while maintaining efficient landings.
 
-Adding an angular-velocity penalty to the existing time-penalty reward function produced the best-performing agent among the three tested models.
+### Model 3′: Strong Stability PPO
 
-This experiment demonstrates how reward shaping can be used to investigate the relationship between control stability, episode efficiency, and reinforcement learning performance.
+Increased the rotational penalty by a factor of 10:
 
+```python
+reward -= 0.01
+reward -= 0.20 * abs(observation[5])
+```
 
-### Experimental Results
+**Hypothesis:** A stronger penalty will reduce angular velocity more effectively, potentially at the expense of landing performance.
 
-| Metric | Baseline PPO | Time-Penalty PPO | Change |
-|---|---:|---:|---:|
-| Average Episode Reward | 115.85 | 189.40 | +63.5% |
-| Landing Success Proxy | 72% | 76% | +4 percentage points |
-| Average Episode Length | 498.54 | 382.86 | −23.2% |
+### Model 3″: Intermediate Stability PPO
+
+Tested a coefficient between the original and stronger penalties:
+
+```python
+reward -= 0.01
+reward -= 0.05 * abs(observation[5])
+```
+
+**Hypothesis:** An intermediate coefficient may provide a better trade-off between rotational stability and overall performance.
+
+## Experimental Results
+
+### Performance Comparison
+
+| Model | Average Reward | Preliminary Success Proxy | Average Steps | Average Absolute Angular Velocity | Average Maximum Angular Velocity |
+|---|---:|---:|---:|---:|---:|
+| Baseline | 115.85 | 72% | 498.54 | 0.0321 | 0.4826 |
+| Time Penalty | 189.40 | 76% | 382.86 | 0.0356 | 0.4828 |
+| Stability (3) | **204.90** | 79% | **321.00** | 0.0455 | 0.6242 |
+| Strong Stability (3′) | 53.76 | 48% | 417.68 | 0.0327 | 0.5364 |
+| Intermediate Stability (3″) | 167.93 | **81%** | 423.96 | 0.0418 | 0.5490 |
+
+**Evaluation note:** The preliminary success proxy is based on episode termination and final-step reward. It has not been validated as an exact landing-success detector.
 
 ### Performance Visualizations
 
-![Average Reward](results/average_reward.png)
+#### Average Episode Reward
 
-![Landing Success Proxy](results/success_rate.png)
+![Average Reward Comparison](results/average_reward.png)
 
-![Average Episode Length](results/average_steps.png)
+#### Preliminary Success Proxy
 
-### Key Findings
+![Success Proxy Comparison](results/success_rate.png)
 
-The time-penalty model achieved higher average rewards, a higher preliminary landing-success rate, and shorter episodes than the baseline model.
+#### Average Episode Length
 
-These results suggest that adding a small time penalty may encourage more efficient landing behavior. However, additional training runs with different random seeds are needed to determine whether the improvement consistently results from the reward modification.
+![Average Episode Steps](results/average_steps.png)
 
-## Future Experiments
-- Implement custom reward shaping
-- Investigate reward hacking
-- Compare multiple reward functions
-- Improve landing reliability
+#### Average Absolute Angular Velocity
+
+![Angular Velocity Comparison](results/angular_velocity.png)
+
+## Key Findings
+
+### 1. Reward Shaping Improved Observed Performance
+
+Model 3 achieved an average reward of 204.90, a **76.9% increase** over the baseline, while reducing average episode length by **35.6%**.
+
+These results demonstrate that the reward configuration can substantially affect the learned policy.
+
+### 2. Penalizing Rotation Did Not Initially Reduce Rotation
+
+Despite receiving an explicit angular-velocity penalty, Model 3 exhibited higher average angular velocity than both the baseline and time-penalty models.
+
+This unexpected result motivated further investigation into the agent's control behavior.
+
+### 3. Flight Trajectory Analysis Revealed Different Control Patterns
+
+I analyzed 100 evaluation trajectories per model, recording angular velocity, engine actions, and flight progress.
+
+Model 3 exhibited greater angular velocity primarily during the first 80% of episode progress.
+
+Although Models 2 and 3 activated their orientation engines at similar overall rates (42.33% and 43.32% of steps, respectively), Model 3 maintained longer consecutive orientation-engine action sequences.
+
+During multi-step runs of identical orientation-engine actions, absolute angular velocity increased in **66.81%** of Model 3's runs, compared with **33.91%** for Model 2.
+
+These observations suggest that differences in action timing and control patterns may contribute to Model 3's higher rotation, although they do not establish a definitive causal explanation.
+
+### 4. Stronger Penalties Reduced Rotation but Hurt Performance
+
+Increasing the rotational penalty coefficient from `0.02` to `0.20` reduced average angular velocity by **28.1%**.
+
+However, average reward decreased by **73.8%**, demonstrating a substantial observed trade-off between rotational stability and overall performance.
+
+### 5. Intermediate Penalties Produced Different Trade-offs
+
+Using an intermediate coefficient of `0.05` reduced average angular velocity by **8.1%** compared with Model 3.
+
+Model 3″ also achieved the highest preliminary success proxy (81%), but its average reward and episode efficiency were worse than Model 3's.
+
+These findings illustrate that no single tested configuration performed best across every metric.
+
+## Limitations
+
+- Each reward configuration was trained once; repeated training with different random seeds is needed to assess consistency.
+- The preliminary landing-success proxy has not been validated against actual landing outcomes.
+- Differences in behavior may reflect both reward shaping and stochastic training variation.
+- The tested penalty coefficients do not establish an optimal reward function.
+
+## Installation and Usage
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/arnavlasher/rocket-landing-rl.git
+cd rocket-landing-rl
+```
+
+### 2. Create a virtual environment
+
+```bash
+python -m venv .venv
+```
+
+Activate the environment on Windows:
+
+```powershell
+.venv\Scripts\activate
+```
+
+### 3. Install dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Train the models
+
+Train the baseline model:
+
+```bash
+python train.py
+```
+
+Train the reward-shaped models:
+
+```bash
+python train_custom.py
+python train_stability.py
+python train_stability_prime.py
+python train_stability_double_prime.py
+```
+
+### 5. Evaluate model performance
+
+```bash
+python evaluate.py
+```
+
+This evaluates all five models and saves performance metrics to the `results/` directory.
+
+### 6. Generate comparison plots
+
+```bash
+python plot_comparison.py
+```
+
+### 7. Analyze agent behavior
+
+Run the additional behavioral analyses:
+
+```bash
+python analyze_trajectories.py
+python analyze_rotation.py
+python analyze_actions.py
+python analyze_engine_patterns.py
+python analyze_rotation_buildup.py
+```
+
+These scripts examine flight trajectories, angular velocity, orientation-engine usage, and rotational behavior.
+
+## Future Improvements
+
+- Validate landing outcomes using explicit touchdown criteria.
+- Repeat training across multiple random seeds and report statistical uncertainty.
+- Explore alternative reward functions that better balance stability and landing performance.
+- Investigate reward hacking and unintended agent behavior.
+- Compare PPO with other reinforcement learning algorithms.
+
+## Conclusion
+
+This project demonstrates how reinforcement learning performance depends on reward design and how reward shaping can produce unexpected behavioral trade-offs.
+
+By training five PPO configurations, evaluating their performance, and analyzing flight trajectories, I investigated the relationship between landing efficiency, rotational stability, and learned control strategies.
+
+The results highlight the importance of evaluating both task performance and actual agent behavior rather than relying on reward scores alone.

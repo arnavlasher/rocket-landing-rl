@@ -9,7 +9,8 @@ df = pd.read_csv("results/model_comparison.csv")
 summary = df.groupby("model").agg(
     average_reward=("reward", "mean"),
     success_rate=("success", "mean"),
-    average_steps=("steps", "mean")
+    average_steps=("steps", "mean"),
+    avg_angular_velocity=("avg_angular_velocity", "mean")
 )
 
 summary["success_rate"] *= 100
@@ -18,9 +19,13 @@ summary["success_rate"] *= 100
 metrics = [
     ("average_reward", "Average Episode Reward", "average_reward.png"),
     ("success_rate", "Landing Success Proxy (%)", "success_rate.png"),
-    ("average_steps", "Average Episode Length (Steps)", "average_steps.png")
+    ("average_steps", "Average Episode Length (Steps)", "average_steps.png"),
+    (
+        "avg_angular_velocity",
+        "Average Absolute Angular Velocity",
+        "angular_velocity.png"
+    )
 ]
-
 # Create and save each graph
 for column, title, filename in metrics:
     plt.figure(figsize=(7, 5))
@@ -54,4 +59,4 @@ for column, title, filename in metrics:
 
     plt.close()
 
-print("All three comparison graphs saved!")
+print("All four comparison graphs saved!")
