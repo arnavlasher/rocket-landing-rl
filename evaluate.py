@@ -7,7 +7,8 @@ import os
 # Models to compare
 models = {
     "baseline": "models/baseline_ppo",
-    "time_penalty": "models/time_penalty_ppo"
+    "time_penalty": "models/time_penalty_ppo",
+    "stability": "models/stability_ppo"
 }
 
 num_episodes = 100

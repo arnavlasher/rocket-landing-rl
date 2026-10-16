@@ -15,3 +15,24 @@ class TimePenaltyWrapper(gym.Wrapper):
 
         # Return the modified reward
         return observation, reward, terminated, truncated, info
+
+
+class StabilityRewardWrapper(gym.Wrapper):
+    def __init__(self, env, time_penalty=0.01, stability_penalty=0.02):
+        super().__init__(env)
+        self.time_penalty = time_penalty
+        self.stability_penalty = stability_penalty
+
+    def step(self, action):
+        observation, reward, terminated, truncated, info = self.env.step(action)
+
+        # Angular velocity is observation index 5
+        angular_velocity = observation[5]
+
+        # Penalize taking too long
+        reward -= self.time_penalty
+
+        # Penalize excessive rotation
+        reward -= self.stability_penalty * abs(angular_velocity)
+
+        return observation, reward, terminated, truncated, info

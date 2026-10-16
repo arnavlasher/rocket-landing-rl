@@ -1,3 +1,4 @@
 model,average_reward,success_rate,average_steps
 baseline,115.85397091891272,72.0,498.54
+stability,204.90408034518427,79.0,321.0
 time_penalty,189.3962492012476,76.0,382.86
